@@ -30,3 +30,13 @@ Access these via the **Command Palette** (`Ctrl+Shift+P` or `Cmd+Shift+P`).
 Saved sessions are written to:
 (`C:\Users\<your_username>\AppData\Roaming\Code\User\globalStorage\publisher.session-builder\sessions`)
 
+Feel free to back them up, sync them, or edit them manually.
+
+---
+
+## 📦 Installation
+
+```bash
+code --install-extension wesleychestang.session-builder
+Or find it on the Visual Studio Marketplace.
+```

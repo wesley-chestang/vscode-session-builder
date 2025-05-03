@@ -1,9 +1,9 @@
-# Change Log
+# Changelog
 
-All notable changes to the "session-builder" extension will be documented in this file.
+## [0.1.0] - 2025-05-02
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
-
-## [Unreleased]
-
-- Initial release
+### Added
+- Save and load named file sessions
+- JSON-based session storage under `~/.vscode-session-builder/`
+- Load/Delete/List session commands in Command Palette
+- Extension icon and Marketplace publishing support
