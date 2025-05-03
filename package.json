@@ -2,6 +2,10 @@
   "name": "session-builder",
   "publisher": "wesleychestang",
   "displayName": "Session Builder",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wesley-chestang/vscode-session-builder.git"
+  },
   "description": "Save all currently open tabs in the session, so you can re-open them all later.",
   "version": "0.0.1",
   "engines": {
