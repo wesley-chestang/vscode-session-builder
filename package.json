@@ -1,0 +1,76 @@
+{
+  "name": "session-builder",
+  "publisher": "wesleychestang",
+  "displayName": "Session Builder",
+  "description": "Save all currently open tabs in the session, so you can re-open them all later.",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.99.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:session-builder.saveSession",
+    "onCommand:session-builder.restoreSession",
+    "onCommand:session-builder.restoreNamedSession",
+    "onCommand:session-builder.deleteSession"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "session-builder.saveSession",
+        "title": "Session Builder: Save Session"
+      },
+      {
+        "command": "session-builder.restoreSession",
+        "title": "Session Builder: Restore Session"
+      },
+      {
+        "command": "session-builder.restoreNamedSession",
+        "title": "Session Builder: Restore Named Session"
+      },
+      {
+        "command": "session-builder.deleteSession",
+        "title": "Session Builder: Delete Session"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sessionBuilder",
+          "title": "Session Builder",
+          "icon": "media/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "sessionBuilder": [
+        {
+          "id": "sessionBuilderView",
+          "name": "Sessions"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.99.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.25.1",
+    "typescript": "^5.8.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
