@@ -7,7 +7,7 @@
     "url": "https://github.com/wesley-chestang/vscode-session-builder.git"
   },
   "description": "Save all currently open tabs in the session, so you can re-open them all later.",
-  "version": "0.0.1",
+  "version": "1.1.0",
   "engines": {
     "vscode": "^1.99.0"
   },
@@ -18,7 +18,8 @@
     "onCommand:session-builder.saveSession",
     "onCommand:session-builder.restoreSession",
     "onCommand:session-builder.restoreNamedSession",
-    "onCommand:session-builder.deleteSession"
+    "onCommand:session-builder.deleteSession",
+    "onCommand:session-builder.overwriteSession"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -38,6 +39,10 @@
       {
         "command": "session-builder.deleteSession",
         "title": "Session Builder: Delete Session"
+      },
+      {
+        "command": "session-builder.overwriteSession",
+        "title": "Overwrite Session with Open Files"
       }
     ],
     "viewsContainers": {

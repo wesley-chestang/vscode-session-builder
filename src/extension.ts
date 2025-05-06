@@ -10,8 +10,8 @@ export function activate(context: vscode.ExtensionContext) {
   registerRestoreSessionCommand(context);
   registerRestoreNamedSessionCommand(context);
   registerDeleteSessionCommand(context);
+  registerOverwriteSessionCommand(context);
   registerSidebarTreeView(context);
-
 }
 
 export function deactivate() {}
@@ -31,9 +31,10 @@ function registerSaveSessionCommand(context: vscode.ExtensionContext) {
       return;
     }
 
-    const openDocs = vscode.window.visibleTextEditors
-    .filter(editor => !editor.document.isUntitled && !editor.document.isClosed)
-    .map(editor => editor.document.fileName);
+    const openDocs = vscode.workspace.textDocuments
+      .filter(doc => !doc.isUntitled && !doc.isClosed && doc.uri.scheme === 'file')
+      .map(doc => doc.fileName);
+
   
 
     if (openDocs.length === 0) {
@@ -97,7 +98,6 @@ function registerRestoreSessionCommand(context: vscode.ExtensionContext) {
 
 function registerRestoreNamedSessionCommand(context: vscode.ExtensionContext) {
   const restoreNamedSession = vscode.commands.registerCommand('session-builder.restoreNamedSession', async (fileName: string) => {
-    // 1. Check if any documents are open
     const hasOpenFiles = vscode.workspace.textDocuments.some(doc => !doc.isUntitled && !doc.isClosed);
 
     if (hasOpenFiles) {
@@ -107,10 +107,23 @@ function registerRestoreNamedSessionCommand(context: vscode.ExtensionContext) {
       );
 
       if (confirm === 'Yes — Save and Continue') {
-        const openEditors = vscode.window.visibleTextEditors
-          .filter(editor => !editor.document.isUntitled && !editor.document.isClosed)
-          .map(editor => editor.document.fileName);
-      
+        const unsavedDocs = vscode.workspace.textDocuments.filter(doc => doc.isDirty && !doc.isUntitled);
+        if (unsavedDocs.length > 0) {
+          const saveConfirm = await vscode.window.showQuickPick(
+            ['💾 Save and Continue', '⚠️ Continue Without Saving', 'Cancel'],
+            { placeHolder: `You have ${unsavedDocs.length} unsaved file(s). What do you want to do?` }
+          );
+
+          if (saveConfirm === '💾 Save and Continue') {
+            await vscode.workspace.saveAll();
+          } else if (saveConfirm === 'Cancel') {
+            return;
+          }
+        }
+
+        const openDocs = vscode.workspace.textDocuments
+          .filter(doc => !doc.isUntitled && !doc.isClosed && doc.uri.scheme === 'file')
+          .map(doc => doc.fileName);
 
         const sessionName = await vscode.window.showInputBox({
           prompt: 'Enter a name to save your current session',
@@ -121,19 +134,17 @@ function registerRestoreNamedSessionCommand(context: vscode.ExtensionContext) {
           const folderPath = path.join(context.globalStorageUri.fsPath, 'sessions');
           const savePath = path.join(folderPath, `${sessionName}.json`);
           await fs.promises.mkdir(folderPath, { recursive: true });
-          await fs.promises.writeFile(savePath, JSON.stringify(openEditors, null, 2), 'utf8');
+          await fs.promises.writeFile(savePath, JSON.stringify(openDocs, null, 2), 'utf8');
           vscode.window.showInformationMessage(`Session "${sessionName}" saved.`);
           sessionTreeProvider?.refresh();
         }
       } else if (confirm === 'Cancel') {
-        return; // Abort switching
+        return;
       }
     }
 
-    // 2. Close all open editors
     await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 
-    // 3. Load and open session files
     const sessionFolder = path.join(context.globalStorageUri.fsPath, 'sessions');
     const sessionFilePath = path.join(sessionFolder, fileName);
 
@@ -185,6 +196,57 @@ function registerDeleteSessionCommand(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(cmd);
 }
+
+function registerOverwriteSessionCommand(context: vscode.ExtensionContext) {
+  const cmd = vscode.commands.registerCommand('session-builder.overwriteSession', async (fileName: string) => {
+    if (!fileName || typeof fileName !== 'string' || !fileName.endsWith('.json')) {
+      vscode.window.showErrorMessage('Invalid session file provided for overwrite.');
+      return;
+    }
+
+    const confirm = await vscode.window.showWarningMessage(
+      `Are you sure you want to overwrite "${path.basename(fileName, '.json')}" with currently open files?`,
+      { modal: true },
+      'Overwrite'
+    );
+
+    if (confirm !== 'Overwrite') return;
+
+    const unsavedDocs = vscode.workspace.textDocuments.filter(doc => doc.isDirty && !doc.isUntitled);
+    if (unsavedDocs.length > 0) {
+      const saveConfirm = await vscode.window.showQuickPick(
+        ['💾 Save and Continue', '⚠️ Continue Without Saving', 'Cancel'],
+        { placeHolder: `You have ${unsavedDocs.length} unsaved file(s). What do you want to do?` }
+      );
+
+      if (saveConfirm === '💾 Save and Continue') {
+        await vscode.workspace.saveAll();
+      } else if (saveConfirm === 'Cancel') {
+        return; // Abort
+      }
+    }
+
+    const openDocs = vscode.workspace.textDocuments
+      .filter(doc => !doc.isUntitled && !doc.isClosed && doc.uri.scheme === 'file')
+      .map(doc => doc.fileName);
+
+    if (openDocs.length === 0) {
+      vscode.window.showInformationMessage('No open files to save.');
+      return;
+    }
+
+    const folderPath = path.join(context.globalStorageUri.fsPath, 'sessions');
+    const filePath = path.join(folderPath, fileName);
+
+    await fs.promises.writeFile(filePath, JSON.stringify(openDocs, null, 2), 'utf8');
+
+    vscode.window.showInformationMessage(`Session "${path.basename(fileName, '.json')}" overwritten with ${openDocs.length} files.`);
+    sessionTreeProvider?.refresh();
+  });
+
+  context.subscriptions.push(cmd);
+}
+
 
 
 
@@ -275,7 +337,7 @@ class SessionProvider implements vscode.TreeDataProvider<SessionItem> {
       }
     }
   
-    // EXPANDED SESSION VIEW (restore/delete/view-files)
+    // EXPANDED SESSION VIEW (restore/delete/overwrite/view-files)
     if (element.kind === 'session' && element.sessionFile) {
       const restoreItem = new SessionItem(
         "📂 Restore Session",
@@ -285,6 +347,19 @@ class SessionProvider implements vscode.TreeDataProvider<SessionItem> {
         undefined,
         {
           command: 'session-builder.restoreNamedSession',
+          title: '',
+          arguments: [element.sessionFile]
+        }
+      );
+  
+      const overwriteItem = new SessionItem(
+        "📝 Overwrite Session",
+        vscode.TreeItemCollapsibleState.None,
+        'restore',
+        element.sessionFile,
+        undefined,
+        {
+          command: 'session-builder.overwriteSession',
           title: '',
           arguments: [element.sessionFile]
         }
@@ -310,13 +385,15 @@ class SessionProvider implements vscode.TreeDataProvider<SessionItem> {
         element.sessionFile
       );
   
-      return Promise.resolve([restoreItem, deleteItem, filesRootItem]);
+      return Promise.resolve([restoreItem, overwriteItem, deleteItem, filesRootItem]);
     }
   
     // EXPANDED "📄 View Files" LIST
     if (element.kind === 'filesRoot' && element.sessionFile) {
       const sessionPath = path.join(sessionFolder, element.sessionFile);
-      if (!fs.existsSync(sessionPath)) {return Promise.resolve([])};
+      if (!fs.existsSync(sessionPath)) {
+        return Promise.resolve([]);
+      }
   
       try {
         const fileList: string[] = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
@@ -353,6 +430,7 @@ class SessionProvider implements vscode.TreeDataProvider<SessionItem> {
   
     return Promise.resolve([]);
   }
+  
     
 }
 
